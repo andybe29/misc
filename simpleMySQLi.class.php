@@ -1,16 +1,30 @@
 <?php
-# simpleMySQLi
+/**
+ * @author andy.bezbozhny <andy.bezbozhny@gmail.com>
+ */
 class simpleMySQLi {
 
+	/**
+	 * @var string  $str строка запроса
+	 * @var boolean $log логировать запросы?
+	 */
 	public $str = '';
 	public $log = false;
 
-	private $conn_id = 0;
+	/**
+	 * @var resource $conn_id соединение с БД
+	 * @var string   $err     сообщение об ошибке
+	 * @var int      $id      последнее добавленное значение auto_increment
+	 * @var string   $path    каталог для логов
+	 * @var int      $rows    кол-во строк при запросах select/update/delete
+	 * @var resource $res     результат выполнения запроса
+	 */
+	private $conn_id = null;
 	private $err     = '';
 	private $id      = 0;
 	private $path    = '';
 	private $rows    = 0;
-	private $res     = 0;
+	private $res     = null;
 
 	public function __construct($db, $root = false) {
 		if ($this->conn_id = mysqli_connect($db['host'], $db['username'], $db['passwd'], $db['dbname'])) {
@@ -38,6 +52,11 @@ class simpleMySQLi {
 		];
 	}
 
+	/**
+	 * выборка всех строк после select
+	 * @param boolean $num флаг гладкого или ассоциированного массива
+	 * @return array массив данных
+	 */
 	public function all($num = false) {
 		if (function_exists('mysqli_fetch_all')) {
 			$u = mysqli_fetch_all($this->res, $num ? MYSQLI_NUM : MYSQLI_ASSOC);
@@ -52,15 +71,29 @@ class simpleMySQLi {
 		return $u;
 	}
 
+	/**
+	 * результат запроса - в ассоциированный массив
+	 * @return array массив данных
+	 */
 	public function assoc() {
 		$r = mysqli_fetch_assoc($this->res);
 		return self::strip($r);
 	}
 
+	/**
+	 * экранирование строки
+	 * @param string $str эранируемая строка
+	 * @return string экранированная строка
+	 */
 	public function escape($str) {
 		return mysqli_real_escape_string($this->conn_id, $str);
 	}
 
+	/**
+	 * выполнение запроса
+	 * @param boolean $log логировать данный запрос?
+	 * @return boolean результат выполнения запроса
+	 */
 	public function execute($log = false) {
 		$this->err  = null;
 		$this->rows = $this->id = 0;
@@ -97,7 +130,7 @@ class simpleMySQLi {
 		}
 
 		if ($this->log or $log or $this->err) {
-			$l   = array(PHP_EOL);
+			$l   = [PHP_EOL];
 			$l[] = date('H:i:s');
 			$l[] = $this->str;
 			$l[] = $this->err;
@@ -108,21 +141,38 @@ class simpleMySQLi {
 		return $this->err ? false : true;
 	}
 
+	/**
+	 * результат запроса в гладкий массив
+	 * @return array массив данных
+	 */
 	public function fetch() {
 		$r = mysqli_fetch_array($this->res, MYSQLI_NUM);
 		return self::strip($r);
 	}
 
+	/**
+	 * высвобождение результата запроса
+	 */
 	public function free() {
 		if (is_object($this->res) or is_array($this->res)) {
 			mysqli_free_result($this->res);
 		}
 	}
 
+	/**
+	 * кол-во изменённных строк (после delete/insert/replace/update)
+	 * @return int кол-во строк
+	 */
 	public function get_rows() {
 		return mysqli_affected_rows($this->conn_id);
 	}
 
+	/**
+	 * добавление в таблицу
+	 * @param string $table название таблицы
+	 * @param array  $data  массив данных, где ключ - названия поля
+	 * @return boolean результат выполнения операции
+	 */
 	public function insert($table = '', $data = []) {
 		if (!$data or !$table) return false;
 
@@ -133,14 +183,31 @@ class simpleMySQLi {
 		return $this->execute() ? ($this->id ? $this->id : true) : false;
 	}
 
+	/**
+	 * последние значение auto_increment
+	 * @return int значение insert_id
+	 */
 	public function last() {
 		return mysqli_insert_id($this->conn_id);
 	}
 
+	/**
+	 * строковое представление даты/времени
+	 * @param boolean $full флаг полноты
+	 * @return string результат
+	 */
 	public function now($full = true) {
 		return $full ? date('Y-m-d H:i:s') : date('Y-m-d');
 	}
 
+	/**
+	 * обновление строки
+	 * @param string $table название таблицы
+	 * @param array  $data  массив данных, где ключ - названия поля
+	 * @param array  $where массив условий
+	 * @param string $sep   оператор условия
+	 * @return int|boolean кол-во изменённых строк либо false в случае ошибки
+	 */
     public function update($table = '', $data = [], $where = [], $sep = 'and') {
         if (!$data or !$table) return false;
 
@@ -150,10 +217,20 @@ class simpleMySQLi {
        	return $this->execute() ? $this->rows : false;
     }
 
+	/**
+	 * заключение строки в двойные кавычки
+	 * @param string $str исходная строка
+	 * @return string результат
+	 */
 	public function varchar($str = '') {
 		return '"' . $this->escape($str) . '"';
 	}
 
+	/**
+	 * очистка массива/объекта от слешей
+	 * @param mixed $obj исходный массив/объект
+	 * @return mixed результат
+	 */
 	static function strip($obj) {
 		if (is_object($obj) or is_array($obj)) {
 			foreach ($obj as $key => $val) {
@@ -165,6 +242,9 @@ class simpleMySQLi {
 		return $obj;
 	}
 
+	/**
+	 * преобразование ассоциированного массива в гладкий
+	 */
 	static function _assoc2plain($u = []) {
 		$func = function($key, $val) { return $key . '=' . $val; };
 		return array_map($func, array_keys($u), $u);
