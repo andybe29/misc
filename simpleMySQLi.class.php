@@ -2,8 +2,8 @@
 /**
  * @author andy.bezbozhny <andy.bezbozhny@gmail.com>
  */
-class simpleMySQLi {
-
+class simpleMySQLi 
+{
     /**
      * @var string  $str строка запроса
      * @var boolean $log логировать запросы?
