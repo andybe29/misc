@@ -2,7 +2,7 @@
 /**
  * @author andy.bezbozhny <andy.bezbozhny@gmail.com>
  */
-class simpleMySQLi 
+class simpleMySQLi
 {
     /**
      * @var string  $str строка запроса
@@ -265,17 +265,17 @@ class simpleMySQLi
     /**
      * преобразование ассоциированного массива в гладкий
      */
-    public function _assoc2plain($u = [])
+    static function _assoc2plain($u = [])
     {
         return array_map(function($key, $val) { return $key . '=' . $val; }, array_keys($u), $u);
     }
 
-    public function _and($u = [])
+    static function _and($u = [])
     {
         return implode(' AND ', $u);
     }
 
-    public function _int($r = [])
+    static function _int($r = [])
     {
         $int = ['id'];
         foreach ($r as $key => $val) {
@@ -284,7 +284,7 @@ class simpleMySQLi
         return $r;
     }
 
-    public function _or($u = [])
+    static function _or($u = [])
     {
         return implode(' OR ', $u);
     }
