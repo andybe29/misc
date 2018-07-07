@@ -68,7 +68,7 @@ class simpleMySQLi
 
         if (function_exists('mysqli_fetch_all')) {
             $u = mysqli_fetch_all($this->res, $num ? MYSQLI_NUM : MYSQLI_ASSOC);
-            $u = array_map(['self', 'strip'], $u);
+            $u = array_map(['self', '_strip'], $u);
         } else {
             while ($r = $num ? $this->fetch() : $this->assoc()) {
                 $u[] = $r;
@@ -85,7 +85,7 @@ class simpleMySQLi
     public function assoc()
     {
         $r = mysqli_fetch_assoc($this->res);
-        return self::strip($r);
+        return self::_strip($r);
     }
 
     /**
@@ -158,7 +158,7 @@ class simpleMySQLi
     public function fetch()
     {
         $r = mysqli_fetch_array($this->res, MYSQLI_NUM);
-        return self::strip($r);
+        return self::_strip($r);
     }
 
     /**
@@ -217,6 +217,17 @@ class simpleMySQLi
     }
 
     /**
+     * возврат первого элемента массива результата
+     * @return mixed результат
+     */
+    public function single()
+    {
+        $r = $this->fetch();
+        $r = self::_strip($r);
+        return $r[0];
+    }
+
+    /**
      * обновление строки
      * @param string $table название таблицы
      * @param array  $data  массив данных, где ключ - названия поля
@@ -245,29 +256,11 @@ class simpleMySQLi
     }
 
     /**
-     * очистка массива/объекта от слешей
-     * @param mixed $obj исходный массив/объект
-     * @return mixed результат
-     */
-    public function strip($obj)
-    {
-        if (is_object($obj) or is_array($obj)) {
-            foreach ($obj as $key => $val) {
-                $obj[$key] = is_string($val) ? stripcslashes($val) : $val;
-            }
-        } else if (is_string($obj)) {
-            $obj = stripcslashes($obj);
-        }
-
-        return $obj;
-    }
-
-    /**
      * преобразование ассоциированного массива в гладкий
      */
     static function _assoc2plain($u = [])
     {
-        return array_map(function($key, $val) { return $key . '=' . $val; }, array_keys($u), $u);
+        return array_map(function($key, $val) { return $key . ' = ' . $val; }, array_keys($u), $u);
     }
 
     static function _and($u = [])
@@ -287,5 +280,23 @@ class simpleMySQLi
     static function _or($u = [])
     {
         return implode(' OR ', $u);
+    }
+
+    /**
+     * очистка массива/объекта от слешей
+     * @param mixed $obj исходный массив/объект
+     * @return mixed результат
+     */
+    static function _strip($obj)
+    {
+        if (is_array($obj)) {
+            return array_map(function($val) { return is_string($val) ? stripcslashes($val) : $val; }, $obj);
+        } else if (is_object($val)) {
+            return (object)array_map(function($val) { return is_string($val) ? stripcslashes($val) : $val; }, (array)$obj);
+        } else if (is_string($obj)) {
+            return stripcslashes($obj);
+        } else {
+            return $obj;
+        }
     }
 }
