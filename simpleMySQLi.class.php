@@ -207,24 +207,12 @@ class simpleMySQLi
     }
 
     /**
-     * строковое представление даты/времени
-     * @param boolean $full флаг полноты
-     * @return string результат
-     */
-    public function now($full = true)
-    {
-        return $full ? date('Y-m-d H:i:s') : date('Y-m-d');
-    }
-
-    /**
      * возврат первого элемента массива результата
      * @return mixed результат
      */
     public function single()
     {
-        $r = $this->fetch();
-        $r = self::_strip($r);
-        return $r[0];
+        return array_shift($this->fetch());
     }
 
     /**
@@ -275,6 +263,16 @@ class simpleMySQLi
             $r[$key] = in_array($key, $int) ? (int)$val : $val;
         }
         return $r;
+    }
+
+    /**
+     * строковое представление даты/времени
+     * @param boolean $full флаг полноты
+     * @return string результат
+     */
+    static function _now($full = true)
+    {
+        return $full ? date('Y-m-d H:i:s') : date('Y-m-d');
     }
 
     static function _or($u = [])
