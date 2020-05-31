@@ -13,10 +13,10 @@ class strUtils {
 	}
 
 	public static function date2str($dtime = 0) {
-		$m  = [1 => ' января ', ' февраля ', ' марта ', ' апреля ', ' мая ', ' июня ', ' июля ', ' августа ', ' сентября ', ' октября ', ' ноября ', ' декабря '];
+		$m  = [1 => 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 		$gd = getdate($dtime ? $dtime : time());
 
-		return str_pad($gd['mday'], 2, '0', STR_PAD_LEFT)  . $m[$gd['mon']] . $gd['year'];
+		return implode(' ', [$gd['mday'], $m[$gd['mon']], $gd['year']]);
 	}
 
 	public static function fsize($size) {
@@ -109,7 +109,12 @@ class strUtils {
 	}
 
 	public static function url2link($str) {
-		return preg_replace('#http://([A-z0-9./-]+)#', '<a href="http://$1">$0</a>', $str);
+	    $re = '@(http(s)?)?(://)?(([a-zа-я0-9])([-\w]+\.)+([^\s\.]+[^\s]*)+[^,.\s])@ui';
+
+        $str = urldecode($str);
+        $str = preg_replace($re, '<a href="http$2://$4">$0</a>', $str);
+
+        return $str;
 	}
 
 	public static function utf2win($str) {

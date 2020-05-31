@@ -41,7 +41,7 @@ class simpleCurl
             curl_setopt($curl, CURLOPT_PROXYTYPE,  CURLPROXY_HTTP);
         }
         curl_setopt($curl, CURLOPT_FOLLOWLOCATION, 1);
-#        curl_setopt($curl, CURLOPT_HTTPHEADER,     $header);
+        curl_setopt($curl, CURLOPT_HTTPHEADER,     $header);
         curl_setopt($curl, CURLOPT_ENCODING,       'gzip,deflate');
         curl_setopt($curl, CURLOPT_AUTOREFERER,    true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
@@ -60,7 +60,7 @@ class simpleCurl
 
         curl_close($curl);
 
-        return ($res and ($res = json_decode($res))) ? $res : false;
+        return $res ? $res : false;
     }
 
 }

@@ -18,7 +18,7 @@ class simpleCrypt
     public function encrypt($data = null)
     {
         if ($data === null) false;
-        $data = json_encode($data);
+        $data = json_encode($data, JSON_UNESCAPED_UNICODE);
 
         $cipher = openssl_encrypt($data, self::SESS_CIPHER, $this->key, OPENSSL_RAW_DATA, $this->iv);
 

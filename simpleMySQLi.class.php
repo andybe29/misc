@@ -22,7 +22,7 @@ class simpleMySQLi
      */
     private $conn_id = null;
     private $db      = null;
-    private $err     = '';
+    private $err     = null;
     private $id      = 0;
     private $path    = '';
     private $rows    = 0;
@@ -48,6 +48,11 @@ class simpleMySQLi
         return in_array($key, ['err', 'id', 'path', 'rows']) ? $this->$key : null;
     }
 
+    public function __set($key, $value)
+    {
+        if ($key == 'err' and empty($value)) $this->err = null;
+    }
+
     public function __debugInfo()
     {
         return [
@@ -65,18 +70,10 @@ class simpleMySQLi
      */
     public function all($num = false)
     {
-        $u = [];
+        $data = mysqli_fetch_all($this->res, $num ? MYSQLI_NUM : MYSQLI_ASSOC);
+        $data = array_map(['self', '_strip'], $data);
 
-        if (function_exists('mysqli_fetch_all')) {
-            $u = mysqli_fetch_all($this->res, $num ? MYSQLI_NUM : MYSQLI_ASSOC);
-            $u = array_map(['self', '_strip'], $u);
-        } else {
-            while ($r = $num ? $this->fetch() : $this->assoc()) {
-                $u[] = $r;
-            }
-        }
-
-        return $u;
+        return $data;
     }
 
     /**
@@ -85,8 +82,8 @@ class simpleMySQLi
      */
     public function assoc()
     {
-        $r = mysqli_fetch_assoc($this->res);
-        return self::_strip($r);
+        $data = mysqli_fetch_assoc($this->res);
+        return self::_strip($data);
     }
 
     /**
@@ -109,7 +106,8 @@ class simpleMySQLi
         $this->err  = null;
         $this->rows = $this->id = 0;
 
-        $this->str = trim(is_array($this->str) ? implode(' ', $this->str) : $this->str);
+        $this->str = is_array($this->str) ? implode(' ', $this->str) : $this->str;
+        $this->str = trim($this->str);
 
         $this->res = mysqli_query($this->conn_id, $this->str);
 
@@ -154,8 +152,8 @@ class simpleMySQLi
      */
     public function fetch()
     {
-        $r = mysqli_fetch_array($this->res, MYSQLI_NUM);
-        return self::_strip($r);
+        $data = mysqli_fetch_array($this->res, MYSQLI_NUM);
+        return self::_strip($data);
     }
 
     /**
@@ -191,6 +189,7 @@ class simpleMySQLi
         $this->str[] = 'INSERT INTO ' . $table;
         $this->str[] = '(' . implode(', ', array_keys($data)) . ')';
         $this->str[] = 'VALUES (' . implode(', ', $data) . ')';
+
         return $this->execute() ? ($this->id ? $this->id : true) : false;
     }
 
@@ -212,13 +211,32 @@ class simpleMySQLi
     }
 
     /**
+     * добавление с заменой в таблицу
+     * @param string $table название таблицы
+     * @param array  $data  массив данных, где ключ - названия поля
+     * @return boolean результат выполнения операции
+     */
+    public function replace($table = '', $data = [])
+    {
+        if (!$data or !$table) return false;
+
+        $this->str   = [];
+        $this->str[] = 'REPLACE INTO ' . $table;
+        $this->str[] = '(' . implode(', ', array_keys($data)) . ')';
+        $this->str[] = 'VALUES (' . implode(', ', $data) . ')';
+
+        return $this->execute() ? $this->rows : false;
+    }
+
+    /**
      * возврат первого элемента массива результата
      * @return mixed результат
      */
     public function single()
     {
-        $r = $this->fetch();
-        return array_shift($r);
+        $data = $this->fetch();
+
+        return array_shift($data);
     }
 
     /**
@@ -324,16 +342,16 @@ class simpleMySQLi
      * @param mixed $obj исходный массив/объект
      * @return mixed результат
      */
-    static function _strip($obj)
+    static function _strip($data)
     {
-        if (is_array($obj)) {
-            return array_map(function($val) { return is_string($val) ? stripcslashes($val) : $val; }, $obj);
+        if (is_array($data)) {
+            return array_map(function($val) { return is_string($val) ? stripcslashes($val) : $val; }, $data);
         } else if (is_object($val)) {
-            return (object)array_map(function($val) { return is_string($val) ? stripcslashes($val) : $val; }, (array)$obj);
-        } else if (is_string($obj)) {
-            return stripcslashes($obj);
+            return (object)array_map(function($val) { return is_string($val) ? stripcslashes($val) : $val; }, (array)$data);
+        } else if (is_string($data)) {
+            return stripcslashes($data);
         } else {
-            return $obj;
+            return $data;
         }
     }
 }
