@@ -8,11 +8,10 @@ class simpleMySQLi
      * @var string  $str строка запроса
      * @var boolean $log логировать запросы?
      */
-    public $str = '';
+    public $str;
     public $log = false;
 
     /**
-     * @var resource $conn_id соединение с БД
      * @var mixed    $db      конфиг подключения к БД
      * @var string   $err     сообщение об ошибке
      * @var int      $id      последнее добавленное значение auto_increment
@@ -20,17 +19,36 @@ class simpleMySQLi
      * @var int      $rows    кол-во строк при запросах select/update/delete
      * @var resource $res     результат выполнения запроса
      */
-    private $conn_id = null;
-    private $db      = null;
-    private $err     = null;
-    private $id      = 0;
-    private $path    = '';
-    private $rows    = 0;
-    private $res     = null;
+    private $db;
+    private $err;
+    private $id;
+    private $path;
+    private $rows;
+    private $res;
+    private $sql;
 
+    /**
+     *  $db => [
+     *      'host'     => default_host
+     *      'username' => default_user
+     *      'passwd'   => default_pw
+     *      'dbname'   => default_dbase
+     *      'port'     => default_port
+     *      'socket'   => default_socket
+     *  ]
+     */
     public function __construct($db, $logs = null)
     {
-        $this->db   = $db;
+        $default = [
+            'host'      => null,
+            'username'  => null,
+            'passwd'    => null,
+            'dbname'    => null,
+            'port'      => null,
+            'socket'    => null
+        ];
+
+        $this->db   = array_merge($default, $db);
         $this->path = $logs;
 
         return $this->_connect();
@@ -38,8 +56,8 @@ class simpleMySQLi
 
     public function __destruct()
     {
-        if ($this->conn_id) {
-            @mysqli_close($this->conn_id);
+        if ($this->sql) {
+            $this->sql->close();
         }
     }
 
@@ -70,7 +88,7 @@ class simpleMySQLi
      */
     public function all($num = false)
     {
-        $data = mysqli_fetch_all($this->res, $num ? MYSQLI_NUM : MYSQLI_ASSOC);
+        $data = $this->res->fetch_all($num ? MYSQLI_NUM : MYSQLI_ASSOC);
         $data = array_map(['self', '_strip'], $data);
 
         return $data;
@@ -82,7 +100,7 @@ class simpleMySQLi
      */
     public function assoc()
     {
-        $data = mysqli_fetch_assoc($this->res);
+        $data = $this->res->fetch_assoc();
         return self::_strip($data);
     }
 
@@ -93,7 +111,7 @@ class simpleMySQLi
      */
     public function escape($str)
     {
-        return mysqli_real_escape_string($this->conn_id, $str);
+        return $this->sql->real_escape_string($str);
     }
 
     /**
@@ -109,11 +127,11 @@ class simpleMySQLi
         $this->str = is_array($this->str) ? implode(' ', $this->str) : $this->str;
         $this->str = trim($this->str);
 
-        $this->res = mysqli_query($this->conn_id, $this->str);
+        $this->res = $this->sql->query($this->str);
 
-        if ($err_no = mysqli_errno($this->conn_id)) {
+        if ($this->sql->errno) {
 
-            $this->err = $err_no . ': ' . mysqli_error($this->conn_id);
+            $this->err = $this->sql->errno . ': ' . $this->sql->error;
 
         } else if (($pos = mb_stripos($this->str, 'DELETE')) === 0) {
 
@@ -130,7 +148,7 @@ class simpleMySQLi
 
         } else if (($pos = mb_stripos($this->str, 'SELECT')) === 0) {
 
-            $this->rows = mysqli_num_rows($this->res);
+            $this->rows = $this->res->num_rows;
 
         } else if (($pos = mb_stripos($this->str, 'UPDATE')) === 0) {
 
@@ -152,7 +170,7 @@ class simpleMySQLi
      */
     public function fetch()
     {
-        $data = mysqli_fetch_array($this->res, MYSQLI_NUM);
+        $data = $this->res->fetch_array(MYSQLI_NUM);
         return self::_strip($data);
     }
 
@@ -161,9 +179,7 @@ class simpleMySQLi
      */
     public function free()
     {
-        if (is_object($this->res) or is_array($this->res)) {
-            mysqli_free_result($this->res);
-        }
+        $this->res->close();
     }
 
     /**
@@ -172,7 +188,7 @@ class simpleMySQLi
      */
     public function rows()
     {
-        return mysqli_affected_rows($this->conn_id);
+        return $this->sql->affected_rows;
     }
 
     /**
@@ -199,7 +215,7 @@ class simpleMySQLi
      */
     public function last()
     {
-        return mysqli_insert_id($this->conn_id);
+        return $this->sql->insert_id;
     }
 
     /**
@@ -207,7 +223,7 @@ class simpleMySQLi
      */
     public function ping()
     {
-        return ($this->conn_id and mysqli_ping($this->conn_id)) ? true : $this->_connect();
+        return ($this->sql and $this->sql->ping()) ? true : $this->_connect();
     }
 
     /**
@@ -274,15 +290,26 @@ class simpleMySQLi
     {
         $this->str = null;
 
-        if ($this->conn_id = mysqli_connect($this->db['host'], $this->db['username'], $this->db['passwd'], $this->db['dbname'])) {
-            mysqli_set_charset($this->conn_id, 'utf8');
-            return true;
+        $this->sql = new mysqli(
+            $this->db['host'],
+            $this->db['username'],
+            $this->db['passwd'],
+            $this->db['dbname'],
+            $this->db['port'],
+            $this->db['socket']
+        );
+
+        if ($this->sql->connect_error) {
+            $this->err = $this->sql->connect_errno . ': ' . $this->sql->connect_error;
+            $this->_write2log();
+
+            return false;
         } else {
-            $this->err = mysqli_connect_errno . ': ' . mysqli_connect_error();
+            $this->sql->set_charset('utf8');
+
+            return true;
         }
 
-        $this->_write2log();
-        return false;
     }
 
     /**
@@ -293,8 +320,8 @@ class simpleMySQLi
         if ($this->path and file_exists($this->path)) {
             $log   = [PHP_EOL];
             $log[] = date('H:i:s');
-            $log[] = $this->str;
-            $log[] = $this->err;
+            if ($this->str) $log[] = $this->str;
+            if ($this->err) $log[] = $this->err;
             error_log(implode(PHP_EOL, $log), 3, $logfile = $this->path . '/mysql.' . date('Y.m.d') . '.log');
             chmod($logfile, 0644);
         }
